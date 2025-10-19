@@ -5,38 +5,68 @@ jmp start
 nop
 
 ; File system headers I don't feel like decoding
-db 0x00, 0x02, 0x01, 0x03, 0x00, 0x02, 0x09, 0x00, 0x0a, 0x00, 0x1e,0x25, 0x01, 0xdd, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, `dexxplay OSDEXXFS00`, 0x00, 0x12, 0x00, 0x02, 0x00
+db 0x00, 0x02, 0x01, 0x03, 0x00, 0x02, 0x09, 0x00, 0x0a, 0x00, 0x1e, 0x25, 0x01, 0xdd, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, "dexxplay OSDEXXFS00", 0x00, 0x12, 0x00, 0x02, 0x00
 
+;; Setup system
+; Set CS to 0
 start:
 jmp 0:setcstozero
 setcstozero:
+; Set AX to 0 to make DS, ES, and SS 0
 xor ax, ax
 mov ds, ax
 mov es, ax
 mov ss, ax
+; Set the stack pointer to RAM right below this bootloader code
 mov sp, 0x7c00
+; Move dl to some location to save the drive type
 mov byte [0x7c2b], dl
+
+;; Configure the system to get ready to move to 32 bit mode
 pushaw
+; https://wiki.osdev.org/CPU_Registers_x86-64#CR0 for more info
 mov eax, cr0
+; Turn off bit 2 of CR0 to disable 8086 emulation completely
 and ax, 0xfffb
+; Turn on bit 1 of CR0 to enable monitor co-processing, a type of parallel processing
+; https://www.computer.org/csdl/journal/ca/2018/01/08219379/13rRUxbCbnq for more info
 or ax, 2
 mov cr0, eax
+; https://wiki.osdev.org/CPU_Registers_x86-64#CR4 for more info
 mov eax, cr4
+; Turn on bits 9 and 10 to enable support for fxsave and fxstor instructions
+; and to enable support for unmasked simd floating point exceptions
 or ax, 0x600
 mov cr4, eax
 popaw
-mov ax, 3
+
+;; Change the video mode for writing text later
+; https://en.wikipedia.org/wiki/INT_10H for more info
+; AH = 00h (Set video mode) and AL = 03h for INT 10h
+; https://mendelson.org/wpdos/videomodes.txt for more info
+; Sets video mode to mode=TEXT text-resolution=80x25 pixel-box=9x16
+; pixel-resolution=720x400 colors=16 display-pages=8 screen-addr=0xB800 system=VGA
+mov ax, 0x0003
 int 0x10
-mov ah, 2
-mov al, 4
-mov ch, 0
-mov dh, 0
-mov cl, 2
-mov bx, 0x7e00
-int 0x13
+
+;; Read from the disk to get the remaining (for now) code data for now
+; https://en.wikipedia.org/wiki/INT_13H for more info
+mov ah, 2 ; Mode 02h, read sectors from drive
+mov al, 4 ; Read 4 sectors (2 KiB)
+mov ch, 0 ; From cylinder 0 (I don't really understand this drive specific stuff, if someone could add descriptive comments that would be nice)
+mov dh, 0 ; From head 0
+mov cl, 2 ; Start at sector 2
+mov bx, 0x7e00 ; Because ES = 0 the data will be loaded at 0x07e00 (right after this bootloader code)
+int 0x13 ; Call the disk interrupt with the above configurations
+
+;; Enable the A20 line
+; https://wiki.osdev.org/A20_Line#Fast_A20_Gate for more info
 in al, 0x92
+; Set bit 1 of the Fast A20 gate to enable the A20 line to get access to the whole 16MB of RAM allowed by the Intel 286
 or al, 2
 out 0x92, al
+
+;; This is all magic to me right now!
 jmp 0x7e5e
 cli
 hlt
