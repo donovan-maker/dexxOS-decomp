@@ -75,42 +75,47 @@ jmp halt
 
 ram_error:
 mov si, $ram_error_str
-call print_red
+call print_cyan
 jmp halt
 
 load_error:
 mov si, $load_error_str
-call print_red
+call print_cyan
 jmp halt
 
 gfx_read_error:
 mov si, $gfx_read_error_str
-call print_red
+call print_cyan
 jmp halt
 
 gfx_error:
 mov si, $gfx_error_str
-call print_red
+call print_cyan
 jmp halt
 
 memory_error:
 mov si, $memory_error_str
-call print_red
+call print_cyan
 
+;idk what this does
+unknow_func1:
 push si
 push ax
 push bx
 mov ah, 0xe
 mov bh, 0
+.Lloop:
 lodsb
 or al, al
-je 0x7cb2
+je .Lend
 int 0x10
-jmp 0x7ca9
+jmp .Lloop
+.Lend:
 pop bx
 pop ax
 pop si
 ret
+
 pushaw
 mov bl, al
 and bl, 0xf
@@ -131,16 +136,21 @@ mov al, bl
 int 0x10
 popaw
 ret
-add byte [bx + si], al
+
+add byte [bx + si], al ;this just seem to be some padding
+
+strlen:
 push si
 push dx
 push bx
 xor dx, dx
+.Lloop:
 lodsb
 or al, al
-je 0x7cf4
+je .Lend
 add dx, 1
-jmp 0x7cea
+jmp .Lloop
+.Lend:
 mov ax, dx
 pop bx
 pop dx
@@ -153,9 +163,9 @@ push si
 push ax
 push bx
 push dx
-call 0x7ce5
-mov cx, ax ;cx must hold the lenght of thr str
-mov ah, 0x13
+call strlen
+mov cx, ax ;cx must hold the lenght of the str
+mov ah, 0x13 ;function to print string
 mov al, 1
 mov bh, 0
 xor dx, dx
