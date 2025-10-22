@@ -68,23 +68,35 @@ out 0x92, al
 
 ;; This is all magic to me right now!
 jmp 0x7e5e
+halt:
 cli
 hlt
-jmp 0x7c78
-mov si, 0x7d26
-call 0x7d20
-jmp 0x7c78
-mov si, 0x7d3c
-call 0x7d20
-jmp 0x7c78
-mov si, 0x7d51
-call 0x7d20
-jmp 0x7c78
-mov si, 0x7d77
-call 0x7d20
-jmp 0x7c78
-mov si, 0x7d92
-call 0x7d20
+jmp halt
+
+ram_error:
+mov si, $ram_error_str
+call print_red
+jmp halt
+
+load_error:
+mov si, $load_error_str
+call print_red
+jmp halt
+
+gfx_read_error:
+mov si, $gfx_read_error_str
+call print_red
+jmp halt
+
+gfx_error:
+mov si, $gfx_error_str
+call print_red
+jmp halt
+
+memory_error:
+mov si, $memory_error_str
+call print_red
+
 push si
 push ax
 push bx
@@ -134,38 +146,47 @@ pop bx
 pop dx
 pop si
 ret
+
+print_str:
+;print a string
 push si
 push ax
 push bx
 push dx
 call 0x7ce5
-mov cx, ax
+mov cx, ax ;cx must hold the lenght of thr str
 mov ah, 0x13
 mov al, 1
 mov bh, 0
 xor dx, dx
-mov bp, si
+mov bp, si ;bp must point to the start of the str
 int 0x10
 pop dx
 pop bx
 pop ax
 pop si
 ret
-mov bl, 0xa
-call 0x7cfa
-ret
-mov bl, 0xc
-call 0x7cfa
-ret
-mov bl, 0xb
-call 0x7cfa
+
+print_green:
+mov bl, 0xa ;light green color
+call print_str
 ret
 
-db "RAM size cant be read", 0
-db "Error loading dexxOS", 0
-db "Graphic mode information cant be read", 0
-db "Error setting graphic mode", 0
-db "Memory at 0x100000 is not free", 0
+print_red:
+mov bl, 0xc ;light red color
+call print_str
+ret
+
+print_cyan:
+mov bl, 0xb ;light cyan color
+call print_str
+ret
+
+ram_error_str:      db "RAM size cant be read", 0
+load_error_str:     db "Error loading dexxOS", 0
+gfx_read_error_str: db "Graphic mode information cant be read", 0
+gfx_error_str:      db "Error setting graphic mode", 0
+memory_error_str:   db "Memory at 0x100000 is not free", 0
 
 times 510-($-$$) db 0x00
 dw 0xAA55
