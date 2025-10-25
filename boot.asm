@@ -5,7 +5,9 @@ jmp start
 nop
 
 ; File system headers I don't feel like decoding
-db 0x00, 0x02, 0x01, 0x03, 0x00, 0x02, 0x09, 0x00, 0x0a, 0x00, 0x1e, 0x25, 0x01, 0xdd, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, "dexxplay OSDEXXFS00", 0x00, 0x12, 0x00, 0x02, 0x00
+db 0x00, 0x02, 0x01, 0x03, 0x00, 0x02, 0x09, 0x00, 0x0a, 0x00, 0x1e, 0x25, 0x01, 0xdd, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, "dexxplay OSDEXXFS", 0x30
+drive_type: db 0x30
+db 0x00, 0x12, 0x00, 0x02, 0x00
 
 ;; Setup system
 ; Set CS to 0
@@ -20,7 +22,7 @@ mov ss, ax
 ; Set the stack pointer to RAM right below this bootloader code
 mov sp, 0x7c00
 ; Move dl to some location to save the drive type
-mov byte [0x7c2b], dl
+mov byte [drive_type], dl
 
 ;; Configure the system to get ready to move to 32 bit mode
 pushaw
@@ -66,8 +68,10 @@ in al, 0x92
 or al, 2
 out 0x92, al
 
-;; This is all magic to me right now!
+;; Move to some code in the next sector
 jmp 0x7e5e
+
+;; This is all just helper functions
 halt:
 cli
 hlt
@@ -97,8 +101,8 @@ memory_error:
 mov si, $memory_error_str
 call print_cyan
 
-;idk what this does
-unknow_func1:
+; idk what these do
+unknown_func1:
 push si
 push ax
 push bx
@@ -116,6 +120,7 @@ pop ax
 pop si
 ret
 
+unknown_func2:
 pushaw
 mov bl, al
 and bl, 0xf
@@ -137,7 +142,7 @@ int 0x10
 popaw
 ret
 
-add byte [bx + si], al ;this just seem to be some padding
+db 0x00, 0x00 ; Seems to be some padding
 
 strlen:
 push si
@@ -198,10 +203,10 @@ gfx_read_error_str: db "Graphic mode information cant be read", 0
 gfx_error_str:      db "Error setting graphic mode", 0
 memory_error_str:   db "Memory at 0x100000 is not free", 0
 
+; Finally pad the bootloader and give it the boot signature
 times 510-($-$$) db 0x00
 dw 0xAA55
 
 ;;; TODO ;;;
 ; Decode dexxOS.img 0x200 to 0x5FF (2 sectors)
-; Figure out what the code does
 ; Figure out what jumps and calls go where
